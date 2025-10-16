@@ -1,0 +1,276 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Portfolio Optimization</title>
+  <style>
+    :root{
+      --bg:#0f172a;
+      --text:#e5e7eb;
+      --muted:#a3a8b8;
+      --accent:#60a5fa;
+      --accent-2:#22d3ee;
+      --border:rgba(255,255,255,.10);
+    }
+
+    *{ box-sizing:border-box }
+    html,body{ height:100% }
+    body{
+      margin:24px;
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      color:var(--text);
+      background:
+        radial-gradient(1100px 680px at 10% -10%, #1e293b 0%, rgba(30,41,59,0) 60%),
+        radial-gradient(900px 600px at 100% 0%, #112040 0%, rgba(17,32,64,0) 60%),
+        var(--bg);
+    }
+
+    h1{ margin:0 0 6px 0; text-align:center; font-weight:800; letter-spacing:.4px; }
+    .subtitle{ text-align:center; margin:0 0 22px 0; color:var(--muted); font-size:14px; }
+
+    .card{
+      background: transparent;
+      border: none;
+      box-shadow: none;
+      padding: 0 0 16px 0; /* only spacing */
+      margin: 14px 0;
+    }
+
+    label{ font-weight:600; display:block; margin: 10px 0 6px; color:var(--muted); }
+
+    input[type=text], input[type=number]{
+      width:100%; padding:12px;
+      border:1px solid var(--border); border-radius:10px;
+      background:#0b1221; color:var(--text);
+      outline:none; transition:border-color .2s, box-shadow .2s;
+    }
+    input::placeholder{ color:#808aa0 }
+    input:focus{ border-color:rgba(96,165,250,.6); box-shadow:0 0 0 3px rgba(96,165,250,.15); }
+
+    .row{ display:grid; grid-template-columns: 1fr 1fr; gap:16px; }
+    .row-views{
+      display:grid; grid-template-columns: repeat(4, auto);
+      gap:26px; margin: 18px 6px 8px; justify-content:center;
+      border-bottom:1px solid var(--border); padding-bottom:6px;
+    }
+    .two-col{ display:grid; grid-template-columns: minmax(320px, 1fr) 2fr; gap:22px; align-items:start; }
+    @media (max-width: 980px){
+      .two-col{ grid-template-columns:1fr; }
+      .row{ grid-template-columns:1fr; }
+      .row-views{ grid-template-columns: repeat(2, auto); }
+    }
+
+    .btn{
+      appearance:none; background:transparent; border:none; cursor:pointer;
+      color:var(--muted); padding:10px 2px; font-weight:700; letter-spacing:.2px;
+      position:relative;
+    }
+    .btn:hover{ color:#fff; }
+    .btn.active{ color:#fff; }
+    .btn.active::after, .btn:hover::after{
+      content:""; position:absolute; left:0; right:0; bottom:-8px; height:2px;
+      background: linear-gradient(90deg, var(--accent), var(--accent-2)); border-radius:2px;
+    }
+
+    table{ border-collapse:collapse; width:100%; }
+    th, td{ padding:8px 10px; text-align:right; border-bottom:1px dashed var(--border); }
+    th:first-child, td:first-child{ text-align:left; }
+    thead th{ color:#c7d2fe; font-weight:700; border-bottom:1px solid var(--border); }
+    h3{ margin:8px 0 10px }
+
+    small{ color:var(--muted); }
+    .err{ color:#ef4444; font-weight:700; }
+
+    .card-head{ display:flex; align-items:center; justify-content:space-between; gap:12px; margin:12px 0 10px; }
+    .bm-sr{
+      font-size:13px; color:#dbeafe; background:rgba(96,165,250,.12);
+      border:1px solid rgba(96,165,250,.35); padding:6px 10px; border-radius:999px; white-space:nowrap;
+    }
+
+    .toggle{ display:inline-flex; align-items:center; gap:8px; font-size:14px; color:var(--muted); }
+    .switch{ position:relative; display:inline-block; width:40px; height:22px; }
+    .switch input{ opacity:0; width:0; height:0; }
+    .slider{ position:absolute; inset:0; cursor:pointer; background:#202a44; transition:.2s; border-radius:999px; border:1px solid var(--border); }
+    .slider:before{ content:""; position:absolute; height:16px; width:16px; left:3px; top:3px; background:#fff; border-radius:50%; transition:.2s; }
+    .switch input:checked + .slider{ background: linear-gradient(90deg, var(--accent), var(--accent-2)); border-color:transparent; }
+    .switch input:checked + .slider:before{ transform:translateX(18px); }
+
+    .plot{ width:100%; height:auto; border:none; border-radius:12px; background:transparent; }
+
+    .plot-wrap { position: relative; }
+    .coord-badge{
+      position: absolute; top: 8px; left: 8px;
+      font-size: 12px; color: #dbeafe; background: rgba(96,165,250,.14);
+      border: 1px solid rgba(96,165,250,.35); padding: 6px 8px; border-radius: 8px;
+      pointer-events: none; opacity: 0; transition: opacity .15s;
+    }
+    .plot-wrap:hover .coord-badge{ opacity: 1; }
+  </style>
+</head>
+<body>
+
+  <h1>Portfolio Optimization</h1>
+  <div class="subtitle">by Tomás Gil Mata</div>
+
+  <div class="card">
+    <form method="post">
+      <label>Tickers (yfiance format - comma separated)</label>
+      <input type="text" name="tickers" placeholder="AAPL, MSFT, KO" value="{{ request.form.get('tickers','') }}">
+
+      <div class="row">
+        <div>
+          <label>Desired return μ(%) (leave blank if you set σ)</label>
+          <input type="text" name="wanted_return" value="{{ request.form.get('wanted_return','') }}">
+        </div>
+        <div>
+          <label>Desired volatility σ(%) (leave blank if you set μ)</label>
+          <input type="text" name="wanted_volatility" value="{{ request.form.get('wanted_volatility','') }}">
+        </div>
+      </div>
+
+      <div class="row">
+        <div>
+          <label>Risk-free rate (%)</label>
+          <input type="text" name="rf" value="{{ request.form.get('rf','') }}">
+        </div>
+        <div>
+          <label>Benchmark Ticker (yfinance format - optional)</label>
+          <input type="text" name="benchmark" placeholder="^GSPC" value="{{ request.form.get('benchmark','') }}">
+        </div>
+      </div>
+
+      <p><small>Provide <b>either</b> desired μ or desired σ (not both).</small></p>
+
+      {% set v = (results.view if results and ('view' in results) else 'mvp') %}
+      <div class="row-views">
+        <button class="btn {% if results and v=='mvp' %}active{% endif %}" type="submit" name="view" value="mvp" aria-pressed="{{ 'true' if v=='mvp' else 'false' }}">Minimum Variance</button>
+        <button class="btn {% if results and v=='tangent' %}active{% endif %}" type="submit" name="view" value="tangent" aria-pressed="{{ 'true' if v=='tangent' else 'false' }}">Tangent</button>
+        <button class="btn {% if results and v=='opt_norf' %}active{% endif %}" type="submit" name="view" value="opt_norf" aria-pressed="{{ 'true' if v=='opt_norf' else 'false' }}">Optimal (no riskless asset)</button>
+        <button class="btn {% if results and v=='opt_rf' %}active{% endif %}" type="submit" name="view" value="opt_rf" aria-pressed="{{ 'true' if v=='opt_rf' else 'false' }}">Optimal (w/riskless asset)</button>
+      </div>
+
+      {% if error %}
+        <div class="card" style="padding:0;"><span class="err">Error:</span> {{ error }}</div>
+      {% endif %}
+
+      {% if results %}
+        {% macro weights_table(title, rows, r, s, sp) -%}
+          <div class="card" style="padding:0;">
+            <h3>{{ title }}</h3>
+            <table>
+              <thead><tr><th>Ticker</th><th>Weight</th></tr></thead>
+              <tbody>
+                {% for t, w in rows %}
+                  <tr><td>{{ t }}</td><td>{{ '%.2f%%' % (100*w) }}</td></tr>
+                {% endfor %}
+              </tbody>
+            </table>
+            <p><b>Return μ:</b> {{ '%.2f%%' % (100*r) }} &nbsp;&nbsp; <b>Vol σ:</b> {{ '%.2f%%' % (100*s) }}</p>
+            <p><b>Sharpe Ratio:</b> {{ '%.3f' % sp }}</p>
+          </div>
+        {%- endmacro %}
+
+        <div class="two-col" style="margin-top:10px;">
+          <div>
+            {% if v == "mvp" %}
+              {{ weights_table("Minimum Variance Portfolio", results.mvp_weights, results.mvp_r, results.mvp_s, results.mvp_sp) }}
+            {% elif v == "tangent" %}
+              {{ weights_table("Tangent Portfolio", results.tangent_weights, results.tangent_r, results.tangent_s, results.tp_sp) }}
+            {% elif v == "opt_norf" %}
+              {{ weights_table("Optimal (no risk-free)", results.opt_norf_weights, results.opt_norf_r, results.opt_norf_s, results.op_sp) }}
+            {% elif v == "opt_rf" %}
+              {{ weights_table("Optimal (+ risk-free)", results.opt_rf_weights, results.opt_rf_r, results.opt_rf_s, results.tp_sp) }}
+            {% endif %}
+          </div>
+
+          <div>
+            <div class="card" style="padding:0;">
+              <div class="card-head">
+                <h3 style="margin:0;">Portfolio Frontier</h3>
+
+                {% if results and (results.bm_sp is not none) %}
+                  <span class="bm-sr">Benchmark Sharpe Ratio: {{ '%.3f' % results.bm_sp }}</span>
+                {% endif %}
+
+                <input type="hidden" name="view" value="{{ v }}">
+
+                <label class="toggle">
+                  <span>Show tickers</span>
+                  <span class="switch">
+                    <input type="checkbox" name="show_tickers" value="1"
+                           onchange="this.form.submit()"
+                           {% if request.form.get('show_tickers') %}checked{% endif %}>
+                    <span class="slider"></span>
+                  </span>
+                </label>
+              </div>
+              <div class="plot-wrap"
+                    data-xmin="{{ '%.8f' % results.x_min }}"
+                    data-xmax="{{ '%.8f' % results.x_max }}"
+                    data-ymin="{{ '%.8f' % results.y_min }}"
+                    data-ymax="{{ '%.8f' % results.y_max }}"
+                    data-left="{{ '%.6f' % results.ax_left }}"
+                    data-bottom="{{ '%.6f' % results.ax_bottom }}"
+                    data-width="{{ '%.6f' % results.ax_width }}"
+                    data-height="{{ '%.6f' % results.ax_height }}">
+                <div class="coord-badge" id="coords">σ: — · μ: —</div>
+                <img alt="plot" class="plot" id="plotImg" src="data:image/png;base64,{{ results.plot_b64 }}">
+              </div>
+            </div>
+          </div>
+        </div>
+      {% endif %}
+    </form>
+  </div>
+
+<script>
+(function(){
+  const wrap  = document.querySelector('.plot-wrap');
+  const img   = document.getElementById('plotImg');
+  const badge = document.getElementById('coords');
+  if(!wrap || !img || !badge) return;
+
+  const xMin = parseFloat(wrap.dataset.xmin),
+        xMax = parseFloat(wrap.dataset.xmax),
+        yMin = parseFloat(wrap.dataset.ymin),
+        yMax = parseFloat(wrap.dataset.ymax);
+
+  // axes box (fraction of figure) from server
+  const axL = parseFloat(wrap.dataset.left),
+        axB = parseFloat(wrap.dataset.bottom),
+        axW = parseFloat(wrap.dataset.width),
+        axH = parseFloat(wrap.dataset.height);
+
+  function fmt(n){
+    if(!isFinite(n)) return '—';
+    const a = Math.abs(n);
+    return (a >= 0.001 && a < 1000) ? n.toFixed(3) : n.toExponential(2);
+  }
+
+  function update(e){
+    const r = img.getBoundingClientRect();
+
+    // fractions -> px inside the image
+    const leftPx = axL * r.width;
+    const topPx  = (1 - (axB + axH)) * r.height; // top of plot area
+    const plotW  = axW * r.width;
+    const plotH  = axH * r.height;
+
+    // mouse position within plot (clamped)
+    const px = Math.min(Math.max(e.clientX - r.left - leftPx, 0), plotW);
+    const py = Math.min(Math.max(e.clientY - r.top  - topPx , 0), plotH);
+
+    // px -> data (y inverted)
+    const x = xMin + (px / plotW) * (xMax - xMin);
+    const y = yMax - (py / plotH) * (yMax - yMin);
+
+    badge.textContent = `σ: ${fmt(x)} · μ: ${fmt(y)}`;
+  }
+
+  img.addEventListener('mousemove', update);
+  img.addEventListener('mouseenter', e => { update(e); badge.style.opacity = 1; });
+  img.addEventListener('mouseleave', () => { badge.style.opacity = 0; });
+})();
+</script>
+</body>
+</html>
