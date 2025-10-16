@@ -2,7 +2,7 @@
 Application that will calculate the optimal allocations of a given portfolio according to the Mean Variance portfolio optimization method by Markowitz.
 The app downloads prices with **yfinance**, computes the **mean–variance frontier**, the **minimum-variance** and **tangent** portfolios, and renders a clean interactive plot (hover to read off σ and μ). You can target either a desired return **μ** or a desired volatility **σ**. Optionally compare to a benchmark (e.g. `^GSPC`) and show the individual tickers in the graph.
 
-##Preview
+## Preview
 <img width="2847" height="875" alt="preview1" src="https://github.com/user-attachments/assets/9ecbe3b6-4384-4ddb-9ca3-085214b02feb" />
 <img width="2810" height="1327" alt="preview2" src="https://github.com/user-attachments/assets/62dfcb89-ddbc-4597-aba8-2dfa1b7daea8" />
 
